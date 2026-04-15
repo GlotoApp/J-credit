@@ -1,0 +1,378 @@
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Créditos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(12px);
+            border-radius: 1.25rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .nav-card:active { transform: scale(0.96); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        input:focus { ring: 2px; ring-color: #3b82f6; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="app" class="max-w-md mx-auto min-h-screen px-4 py-6">
+        <!-- Render dinámico -->
+    </div>
+
+    <script>
+        // --- ESTADO CENTRALIZADO ---
+        let state = {
+            currentPage: 'home',
+            baseValue: 0,
+            percent: 0,
+            totalValue: 0,
+            downPayment: 0,
+            installments: 4,
+            installmentValue: 0,
+            frequency: 'semanal'
+        };
+
+        // --- UTILIDADES ---
+        const formatMoney = (n) => {
+            if (isNaN(n) || n === null) return "0";
+            return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        };
+
+        const parseMoney = (v) => {
+            if (!v) return 0;
+            const clean = v.toString().replace(/\D/g, "");
+            return parseInt(clean) || 0;
+        };
+
+        function handleNumericInput(e, callback) {
+            let cursor = e.target.selectionStart;
+            let oldLen = e.target.value.length;
+            
+            let raw = parseMoney(e.target.value);
+            // Si el valor es 0, dejamos el campo limpio si tiene placeholder
+            e.target.value = (raw === 0) ? "" : formatMoney(raw);
+            
+            let newLen = e.target.value.length;
+            let selection = cursor + (newLen - oldLen);
+            e.target.setSelectionRange(selection, selection);
+            
+            callback(raw);
+        }
+
+        // --- NAVEGACIÓN ---
+        function navigateTo(page) {
+            state.currentPage = page;
+            render();
+            window.scrollTo(0,0);
+        }
+
+        // --- VISTAS ---
+        function renderHome() {
+            return `
+                <div class="fade-in space-y-8">
+                    <header class="text-center py-6">
+                        <h1 class="text-3xl font-black text-slate-800 tracking-tight">Panel Central</h1>
+                        <p class="text-slate-500 text-sm">Cobranzas y Simulaciones</p>
+                    </header>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div onclick="navigateTo('simulator')" class="nav-card glass-card p-6 flex flex-col items-center cursor-pointer border-b-4 border-blue-500 hover:bg-blue-50 transition-colors">
+                            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 text-blue-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <span class="font-bold text-slate-700">Simulador</span>
+                        </div>
+                        <div onclick="alert('Próximamente')" class="nav-card glass-card p-6 flex flex-col items-center cursor-pointer border-b-4 border-emerald-500 hover:bg-emerald-50 transition-colors">
+                            <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4 text-emerald-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            </div>
+                            <span class="font-bold text-slate-700 text-sm text-center">Nuevo Crédito</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSimulator() {
+            return `
+                <div class="fade-in space-y-5">
+                    <button onclick="navigateTo('home')" class="flex items-center gap-2 text-slate-400 font-bold text-xs uppercase hover:text-slate-800 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        Regresar
+                    </button>
+
+                    <div class="glass-card p-5 space-y-5">
+                        <h2 class="text-lg font-bold text-slate-800 border-b pb-3">Cálculo de Montos</h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">Valor Base Producto</label>
+                                <input type="text" id="inBase" placeholder="0" value="${formatMoney(state.baseValue)}" 
+                                    class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-xs font-bold text-blue-700 uppercase">Incremento %</label>
+                                    <input type="number" id="inPerc" value="${state.percent}" class="w-14 bg-blue-600 text-white rounded-lg text-center font-bold text-xs py-1">
+                                </div>
+                                <div class="flex flex-col text-[10px] font-bold text-blue-500 mb-3 space-y-0.5">
+                                    <span>• Libre: 20% - 25%</span>
+                                    <span>• Crédito: 40% - 50%</span>
+                                </div>
+                                <input type="range" id="rangePerc" min="0" max="100" value="${state.percent}" class="w-full h-1.5 bg-blue-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                            </div>
+
+                            <div class="p-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white shadow-inner">
+                                <p class="text-[10px] font-bold opacity-80 uppercase mb-1 tracking-wider">Total a Financiar</p>
+                                <div class="flex items-center">
+                                    <span class="text-xl font-bold mr-1">$</span>
+                                    <input type="text" id="inTotal" value="${formatMoney(state.totalValue)}" class="bg-transparent border-b border-blue-400 outline-none w-full text-2xl font-black">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-5 space-y-5 border-t-4 border-emerald-500">
+                        <h2 class="text-lg font-bold text-slate-800">Plan de Pagos</h2>
+                        
+                        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                            ${['diario', 'semanal', 'quincenal'].map(f => `
+                                <button onclick="setFreq('${f}')" class="flex-1 py-2 px-1 rounded-lg border-2 font-bold text-[10px] uppercase transition-all ${state.frequency === f ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-100 text-slate-400 bg-slate-50'}">${f}</button>
+                            `).join('')}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">Cuota Inicial</label>
+                                <input type="text" id="inDown" placeholder="0" value="${formatMoney(state.downPayment)}" class="w-full mt-1 p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none font-bold text-sm">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase">N° Cuotas</label>
+                                <input type="number" id="inCount" value="${state.installments}" min="1" class="w-full mt-1 p-3 bg-slate-50 border border-slate-100 rounded-xl outline-none font-bold text-center text-sm">
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <p class="text-[10px] font-bold text-emerald-600 uppercase mb-2 text-center tracking-widest">Valor de cada cuota</p>
+                            <div class="flex items-center justify-center text-emerald-700">
+                                <span class="text-xl font-black mr-1">$</span>
+                                <input type="text" id="inInstallmentVal" placeholder="0" value="${formatMoney(state.installmentValue)}" 
+                                    class="bg-transparent border-b-2 border-emerald-200 focus:border-emerald-500 outline-none text-2xl font-black w-full text-center">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-5 bg-slate-900 text-white shadow-2xl">
+                        <div id="summaryBox" class="text-xs font-mono space-y-2 opacity-90 mb-4 max-h-52 overflow-y-auto custom-scrollbar">
+                            <!-- Cronograma -->
+                        </div>
+                        <button onclick="copySimulation()" id="btnCopy" class="w-full bg-white text-slate-900 font-black py-4 rounded-xl active:scale-95 transition-all uppercase tracking-widest text-xs shadow-lg">
+                            Copiar Simulación
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- LÓGICA CORE ---
+        function initSimulatorEvents() {
+            const inputs = {
+                base: document.getElementById('inBase'),
+                perc: document.getElementById('inPerc'),
+                range: document.getElementById('rangePerc'),
+                total: document.getElementById('inTotal'),
+                down: document.getElementById('inDown'),
+                count: document.getElementById('inCount'),
+                inst: document.getElementById('inInstallmentVal')
+            };
+
+            inputs.base?.addEventListener('input', (e) => handleNumericInput(e, val => { state.baseValue = val; calc('base'); }));
+            
+            inputs.perc?.addEventListener('input', (e) => {
+                state.percent = parseFloat(e.target.value) || 0;
+                if(inputs.range) inputs.range.value = state.percent;
+                calc('percent');
+            });
+
+            inputs.range?.addEventListener('input', (e) => {
+                state.percent = parseFloat(e.target.value) || 0;
+                if(inputs.perc) inputs.perc.value = state.percent;
+                calc('percent');
+            });
+
+            inputs.total?.addEventListener('input', (e) => handleNumericInput(e, val => { state.totalValue = val; calc('total'); }));
+            
+            inputs.down?.addEventListener('input', (e) => handleNumericInput(e, val => { state.downPayment = val; calc('other'); }));
+            
+            inputs.count?.addEventListener('input', (e) => {
+                state.installments = Math.max(1, parseInt(e.target.value) || 1);
+                calc('count');
+            });
+
+            inputs.inst?.addEventListener('input', (e) => handleNumericInput(e, val => {
+                state.installmentValue = val;
+                calc('instValue');
+            }));
+        }
+
+        function setFreq(f) {
+            state.frequency = f;
+            render();
+        }
+
+        function calc(origin) {
+            const balance = () => state.totalValue - state.downPayment;
+
+            if (origin === 'base' || origin === 'percent') {
+                state.totalValue = state.baseValue + (state.baseValue * (state.percent / 100));
+                const el = document.getElementById('inTotal');
+                if(el) el.value = formatMoney(state.totalValue);
+            } 
+            else if (origin === 'total') {
+                state.percent = state.baseValue > 0 ? ((state.totalValue - state.baseValue) / state.baseValue) * 100 : 0;
+                const p = document.getElementById('inPerc');
+                const r = document.getElementById('rangePerc');
+                if(p) p.value = state.percent.toFixed(1);
+                if(r) r.value = state.percent;
+            }
+
+            // Lógica de Cuotas vs Valor de Cuota
+            if (origin === 'instValue') {
+                const b = balance();
+                if (state.installmentValue > 0) {
+                    state.installments = Math.ceil(b / state.installmentValue);
+                    const el = document.getElementById('inCount');
+                    if(el) el.value = state.installments;
+                }
+            } else {
+                const b = balance();
+                state.installmentValue = state.installments > 0 ? (b / state.installments) : 0;
+                const el = document.getElementById('inInstallmentVal');
+                if(el && origin !== 'init') el.value = formatMoney(state.installmentValue);
+            }
+
+            // Limpieza visual si el balance es negativo
+            if (balance() < 0 && origin !== 'init') {
+                state.downPayment = state.totalValue;
+                const el = document.getElementById('inDown');
+                if(el) el.value = formatMoney(state.downPayment);
+            }
+
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const box = document.getElementById('summaryBox');
+            if(!box) return;
+
+            let html = `<div class="border-b border-white/10 pb-2 mb-3">
+                <p class="font-bold text-blue-400">PLAN PROYECTADO</p>
+                <p class="text-[10px] opacity-60 uppercase">Saldo a pagar: $${formatMoney(state.totalValue - state.downPayment)}</p>
+            </div>`;
+
+            const today = new Date();
+            const cuota = state.installmentValue;
+            
+            for(let i=1; i <= Math.min(state.installments, 100); i++) {
+                let d = new Date(today);
+                if(state.frequency === 'diario') d.setDate(d.getDate() + i);
+                else if(state.frequency === 'semanal') d.setDate(d.getDate() + (i * 7));
+                else d.setDate(d.getDate() + (i * 15));
+                
+                html += `<div class="flex justify-between items-center py-0.5">
+                    <span class="opacity-70">#${i} - ${d.toLocaleDateString('es-ES', {day:'2-digit', month:'short'})}</span>
+                    <span class="text-emerald-400 font-bold">$${formatMoney(cuota)}</span>
+                </div>`;
+            }
+            if(state.installments > 100) html += `<p class="text-center opacity-40 py-2">... y ${state.installments - 100} cuotas más</p>`;
+            box.innerHTML = html;
+        }
+
+        async function copySimulation() {
+            const btn = document.getElementById('btnCopy');
+            const balance = state.totalValue - state.downPayment;
+            const today = new Date();
+            
+            let cronoText = "";
+            const maxCrono = Math.min(state.installments, 12); // Para no saturar el portapapeles
+            
+            for(let i=1; i<=state.installments; i++) {
+                let d = new Date(today);
+                if(state.frequency === 'diario') d.setDate(d.getDate() + i);
+                else if(state.frequency === 'semanal') d.setDate(d.getDate() + (i * 7));
+                else d.setDate(d.getDate() + (i * 15));
+                
+                if(i <= 12) {
+                    cronoText += `🔹 *Cuota ${i}:* ${d.toLocaleDateString()} → *$${formatMoney(state.installmentValue)}*\n`;
+                }
+            }
+            
+            if(state.installments > 12) cronoText += `... _(+${state.installments - 12} cuotas adicionales)_`;
+
+            const text = `*📊 SIMULACIÓN DE CRÉDITO*\n` +
+                         `----------------------------\n` +
+                         `*Total:* $${formatMoney(state.totalValue)}\n` +
+                         `*Inicial:* $${formatMoney(state.downPayment)}\n` +
+                         `*Saldo:* $${formatMoney(balance)}\n` +
+                         `----------------------------\n` +
+                         `*PAGOS (${state.frequency.toUpperCase()})*\n\n` +
+                         `${cronoText}\n` +
+                         `----------------------------\n` +
+                         `_Generado por Sistema de Gestión._`;
+
+            try {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el); el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+
+                const oldText = btn.innerText;
+                btn.innerText = "¡COPIADO!";
+                btn.className = btn.className.replace('bg-white', 'bg-emerald-500').replace('text-slate-900', 'text-white');
+                setTimeout(() => {
+                    btn.innerText = oldText;
+                    btn.className = btn.className.replace('bg-emerald-500', 'bg-white').replace('text-white', 'text-slate-900');
+                }, 2000);
+            } catch (err) {
+                console.error('Error al copiar', err);
+            }
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = state.currentPage === 'home' ? renderHome() : renderSimulator();
+            if (state.currentPage === 'simulator') {
+                initSimulatorEvents();
+                calc('init');
+            }
+        }
+
+        window.onload = render;
+    </script>
+</body>
+</html>
+
+```
